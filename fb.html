@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wadan Post Generator - Embedded Logo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Pothana&family=Noto+Sans+Sinhala:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans Sinhala', sans-serif;
+            background-color: #f0f2f5;
+            user-select: none;
+        }
+        
+        /* 1080px export layout */
+        .post-layout {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            width: 1080px;
+            height: 1080px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .img-box {
+            display: grid;
+            grid-auto-flow: column;
+            grid-auto-columns: 1fr;
+            height: 432px; 
+            background: #eee;
+            border-bottom: 8px solid #ef4444; 
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        .post-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-right: 2px solid #fff; 
+            object-position: 50% 50%;
+            cursor: move;
+            touch-action: none;
+        }
+
+        .post-image:last-child { border-right: none; }
+
+        .txt-box {
+            height: 648px; 
+            padding: 40px 80px;
+            display: flex;
+            flex-direction: column;
+            background-color: white;
+            position: relative;
+            z-index: 2;
+        }
+
+        .main-text-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 100px; 
+        }
+
+        .main-text {
+            font-family: 'Pothana', serif;
+            color: #111;
+            font-weight: normal;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            text-align: center;
+            width: 100%;
+        }
+
+        .credit-text {
+            position: absolute;
+            bottom: 50px; 
+            left: 0;
+            right: 0;
+            font-family: 'Pothana', serif;
+            font-size: 32px;
+            color: #555;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        /* Logo Overlay Style */
+        .logo-overlay {
+            position: absolute;
+            z-index: 100;
+            cursor: move;
+            touch-action: none;
+            width: 120px;
+        }
+        .logo-overlay img {
+            width: 100%;
+            height: auto;
+            pointer-events: none;
+            display: block;
+        }
+
+        /* UI Preview scaling */
+        .preview-container {
+            width: 486px; 
+            height: 486px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.15);
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .ui-img-box { height: 194.4px; border-bottom-width: 3.6px !important; } 
+        .ui-txt-box { height: 291.6px; padding: 20px 35px; }
+        .ui-credit { bottom: 22.5px; font-size: 14.4px; }
+        .ui-post-image { border-right-width: 0.9px !important; }
+        .ui-logo { width: 54px; }
+
+        #hidden-capture {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+        }
+
+        input[type="range"] { accent-color: #2563eb; }
+    </style>
+</head>
+<body class="p-4 md:p-10">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-gray-900 mb-1">Wadan Post Creator</h1>
+            <p class="text-gray-500 text-sm">Automated Logo | Stable 1080x1080 Layout</p>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-12 justify-center items-start">
+            
+            <!-- Settings Panel -->
+            <div class="w-full lg:w-96 bg-white p-6 rounded-3xl shadow-xl border border-gray-100">
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">පින්තූර තෝරන්න (Photos)</label>
+                        <input type="file" id="imageInput" multiple accept="image/*" class="w-full text-xs">
+                    </div>
+
+                    <div class="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-blue-600 mb-2">ලෝගෝව (Logo Settings)</label>
+                        <p class="text-[10px] text-blue-500 mb-3 italic">ලෝගෝව ස්වයංක්‍රීයව පෝස්ට් එකේ පිහිටුවා ඇත.</p>
+                        
+                        <label class="block text-xs font-bold text-gray-500 mb-1">ලෝගෝ ප්‍රමාණය</label>
+                        <input type="range" id="logoSizeSlider" min="30" max="400" value="120" class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">අකුරු ප්‍රමාණය (Main Text)</label>
+                        <input type="range" id="fontSizeSlider" min="20" max="150" value="44" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">වදන් පෙළ</label>
+                        <textarea id="mainTextInput" rows="5" class="w-full p-4 border border-gray-200 rounded-2xl outline-none text-sm focus:ring-2 focus:ring-blue-500" placeholder="මෙහි ලියන්න..."></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">අයිතිය (Fixed)</label>
+                        <select id="creditSelect" class="w-full p-3 border border-gray-200 rounded-2xl outline-none text-sm bg-white cursor-not-allowed" disabled>
+                            <option value="-Digamadulla-">-Digamadulla-</option>
+                        </select>
+                    </div>
+
+                    <button id="downloadBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl transition shadow-lg flex items-center justify-center gap-2">
+                        <span>Download Post (1080px)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Preview Panel -->
+            <div class="flex-1 flex flex-col items-center">
+                <div id="ui-preview" class="preview-container">
+                    
+                    <!-- Automated Embedded Logo -->
+                    <div id="ui-logo" class="logo-overlay ui-logo">
+                        <!-- Using lh3.googleusercontent.com for better direct access -->
+                        <img id="ui-logo-img" crossorigin="anonymous" src="https://lh3.googleusercontent.com/d/1uYuefcCvKkGmwwn2vbi3v0BcMk69hbOH" alt="Logo" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=Logo+Error';">
+                    </div>
+
+                    <div id="ui-imageDisplay" class="img-box ui-img-box">
+                        <div class="flex items-center justify-center text-gray-300 text-center p-10 h-full w-full italic text-xs">පින්තූර තෝරන්න</div>
+                    </div>
+                    <div class="txt-box ui-txt-box">
+                        <div class="main-text-area">
+                            <div id="ui-mainText" class="main-text">ඔබේ වදන් මෙතැන විසිරී පෙනෙනු ඇත.</div>
+                        </div>
+                        <div id="ui-credit" class="credit-text ui-credit">-Digamadulla-</div>
+                    </div>
+                </div>
+                <div class="mt-8 text-center">
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400">1080x1080 AUTOMATED LAYOUT</p>
+                    <div class="flex gap-4 mt-2 justify-center">
+                        <p class="text-[10px] text-blue-500 italic font-bold">● පින්තූර ඇද සකසන්න</p>
+                        <p class="text-[10px] text-purple-500 italic font-bold">● ලෝගෝව ඇද සකසන්න</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Final 1080px Hidden Area -->
+    <div id="hidden-capture">
+        <div id="final-post" class="post-layout">
+            <div id="final-logo" class="logo-overlay">
+                <img id="final-logo-img" crossorigin="anonymous" src="https://lh3.googleusercontent.com/d/1uYuefcCvKkGmwwn2vbi3v0BcMk69hbOH" alt="Logo">
+            </div>
+            <div id="final-imageDisplay" class="img-box"></div>
+            <div class="txt-box">
+                <div class="main-text-area">
+                    <div id="final-mainText" class="main-text">ලියන්න...</div>
+                </div>
+                <div id="final-credit" class="credit-text">-Digamadulla-</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const mainTextInput = document.getElementById('mainTextInput');
+        const fontSizeSlider = document.getElementById('fontSizeSlider');
+        const logoSizeSlider = document.getElementById('logoSizeSlider');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        const uiImgBox = document.getElementById('ui-imageDisplay');
+        const finalImgBox = document.getElementById('final-imageDisplay');
+        const uiTxt = document.getElementById('ui-mainText');
+        const finalTxt = document.getElementById('final-mainText');
+        const uiCredit = document.getElementById('ui-credit');
+        const finalCredit = document.getElementById('final-credit');
+
+        const uiLogo = document.getElementById('ui-logo');
+        const finalLogo = document.getElementById('final-logo');
+
+        let imagePositions = [];
+        let logoPos = { x: 920, y: 40 };
+
+        window.onload = () => {
+            const savedLogoPos = localStorage.getItem('embedded_logo_pos');
+            const savedLogoSize = localStorage.getItem('embedded_logo_size');
+
+            if (savedLogoPos) {
+                logoPos = JSON.parse(savedLogoPos);
+            }
+            if (savedLogoSize) {
+                logoSizeSlider.value = savedLogoSize;
+                updateLogoSize(savedLogoSize);
+            }
+            updateLogoUI();
+        };
+
+        function updateLogoUI() {
+            uiLogo.style.left = (logoPos.x * 0.45) + 'px';
+            uiLogo.style.top = (logoPos.y * 0.45) + 'px';
+            finalLogo.style.left = logoPos.x + 'px';
+            finalLogo.style.top = logoPos.y + 'px';
+        }
+
+        function updateLogoSize(size) {
+            uiLogo.style.width = (size * 0.45) + 'px';
+            finalLogo.style.width = size + 'px';
+        }
+
+        imageInput.addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            uiImgBox.innerHTML = '';
+            finalImgBox.innerHTML = '';
+            imagePositions = [];
+            files.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const src = event.target.result;
+                    imagePositions[index] = { x: 50, y: 50 };
+                    const imgUI = document.createElement('img');
+                    imgUI.src = src; imgUI.className = 'post-image ui-post-image';
+                    imgUI.draggable = false;
+                    setupDrag(imgUI, index, 'bg');
+                    uiImgBox.appendChild(imgUI);
+                    const imgFinal = document.createElement('img');
+                    imgFinal.src = src; imgFinal.className = 'post-image';
+                    imgFinal.id = `final-img-${index}`;
+                    finalImgBox.appendChild(imgFinal);
+                }
+                reader.readAsDataURL(file);
+            });
+        });
+
+        function setupDrag(el, index, type) {
+            let isDragging = false;
+            let startY, startX, currentY, currentX;
+
+            const onStart = (e) => {
+                isDragging = true;
+                const point = e.type.includes('touch') ? e.touches[0] : e;
+                startY = point.clientY;
+                startX = point.clientX;
+                if (type === 'bg') {
+                    currentY = imagePositions[index].y;
+                    currentX = imagePositions[index].x;
+                } else {
+                    currentY = logoPos.y;
+                    currentX = logoPos.x;
+                }
+            };
+
+            const onMove = (e) => {
+                if (!isDragging) return;
+                const point = e.type.includes('touch') ? e.touches[0] : e;
+                const diffY = (point.clientY - startY);
+                const diffX = (point.clientX - startX);
+
+                if (type === 'bg') {
+                    let newY = Math.max(0, Math.min(100, currentY - (diffY / 4)));
+                    let newX = Math.max(0, Math.min(100, currentX - (diffX / 4)));
+                    imagePositions[index].y = newY;
+                    imagePositions[index].x = newX;
+                    const posStr = `${newX}% ${newY}%`;
+                    el.style.objectPosition = posStr;
+                    const fImg = document.getElementById(`final-img-${index}`);
+                    if(fImg) fImg.style.objectPosition = posStr;
+                } else {
+                    let newY = currentY + (diffY / 0.45);
+                    let newX = currentX + (diffX / 0.45);
+                    
+                    newX = Math.max(0, Math.min(1080 - finalLogo.offsetWidth, newX));
+                    newY = Math.max(0, Math.min(1080 - finalLogo.offsetHeight, newY));
+
+                    logoPos.x = newX;
+                    logoPos.y = newY;
+                    updateLogoUI();
+                    localStorage.setItem('embedded_logo_pos', JSON.stringify(logoPos));
+                }
+            };
+
+            const onEnd = () => isDragging = false;
+
+            el.addEventListener('mousedown', onStart);
+            el.addEventListener('touchstart', onStart, { passive: false });
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('touchmove', onMove, { passive: false });
+            window.addEventListener('mouseup', onEnd);
+            window.addEventListener('touchend', onEnd);
+        }
+
+        setupDrag(uiLogo, 0, 'logo');
+
+        mainTextInput.addEventListener('input', () => {
+            const val = mainTextInput.value || "ඔබේ වදන් මෙතැන විසිරී පෙනෙනු ඇත.";
+            uiTxt.textContent = val;
+            finalTxt.textContent = val;
+        });
+
+        fontSizeSlider.addEventListener('input', (e) => {
+            const size = parseInt(e.target.value);
+            uiTxt.style.fontSize = (size * 0.45) + 'px';
+            finalTxt.style.fontSize = size + 'px';
+        });
+
+        logoSizeSlider.addEventListener('input', (e) => {
+            const size = parseInt(e.target.value);
+            updateLogoSize(size);
+            localStorage.setItem('embedded_logo_size', size);
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            const target = document.getElementById('final-post');
+            downloadBtn.innerHTML = 'High Quality පින්තූරය සාදනවා...';
+            downloadBtn.disabled = true;
+
+            html2canvas(target, {
+                scale: 1,
+                useCORS: true,
+                width: 1080,
+                height: 1080,
+                logging: false,
+                allowTaint: true
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'Digamadulla_Post.png';
+                link.href = canvas.toDataURL('image/png', 1.0);
+                link.click();
+                downloadBtn.innerHTML = 'Download Post (1080px)';
+                downloadBtn.disabled = false;
+            }).catch(err => {
+                console.error("Download Error:", err);
+                downloadBtn.innerHTML = 'Download Error! Try again.';
+                downloadBtn.disabled = false;
+            });
+        });
+
+        const initialSize = fontSizeSlider.value;
+        uiTxt.style.fontSize = (initialSize * 0.45) + 'px';
+        finalTxt.style.fontSize = initialSize + 'px';
+        updateLogoUI();
+    </script>
+
+</body>
+</html>
